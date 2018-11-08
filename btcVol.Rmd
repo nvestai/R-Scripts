@@ -1,0 +1,86 @@
+---
+title: "Bitcoin Volatility"
+author: "nvest.ai"
+date: "November 6, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(quantmod)
+library(dygraphs)
+
+#bitcoinHistorical = read.csv("C:/Users/avico/Downloads/bitcoin1.csv", header = TRUE)
+bitcoinHistorical = read.csv('C:/Users/Avi/Downloads/bitcoin1.csv', header = TRUE)
+tail(bitcoinHistorical)
+str(bitcoinHistorical)
+rm(btcXTS)
+btcXTS = as.xts(bitcoinHistorical$Close.Price, order.by = as.Date(as.character(bitcoinHistorical$Date), format = "%m/%d/%Y %H:%M") )
+head(btcXTS)
+colnames(btcXTS) = "PxLast"
+
+
+## Best bitcoin vol to use. but does not match bitmex vol value. get both and see how they move togeather. if trend is same then 
+## value differences dont matter
+
+vol30day = volatility(btcXTS$PxLast, n = 30, N=365)
+plot(tail(vol30day, 360))
+tail(vol30day)
+plot(vol30day)
+vol30day = vol30day[,1]*100
+
+meanVol = mean(vol30day, na.rm= TRUE)
+sd1 = sd(vol30day, na.rm = TRUE)
+
+
+
+##bitcoin roc7 
+roc7 = ROC(btcXTS$PxLast, n = 7)
+
+
+sdROC7 = runSD(roc7$PxLast, n =20)
+
+
+
+```
+
+## A stable coin?
+
+We all know the price of bitcoin, in USD has been very stable over the past few months. In financial markets, Volatility  measures are widely used and are an important input in most trading systems and can also provide different information that looking at prices in isolation. Since I couldn't find any good resources for BTC volatility I made some of my own. 
+
+In the stock market and many other financial markets its common to look at 90 day volatility but with crypto, I found that using 30 days (HatTip Bitmex) works better given the fast paced nature of the markets. 
+
+```{r echo=FALSE}
+dygraph(vol30day, main = "Bitcoin/USD 30 Day Volatility", group = "movingAvg") %>% 
+  dyRangeSelector(dateWindow = c("2017-01-01", "2018-11-06")) %>%
+  dyLimit(meanVol, color = "black", strokePattern = "dotted", label = "Average Volatility", labelLoc = "right") %>%
+  dyLimit(meanVol+sd1, color = "red", strokePattern = "dashed", label = "1 StDev", labelLoc = "right") %>%
+  dyLimit(meanVol-sd1, color = "blue", strokePattern = "dashed") %>%
+  dyOptions(axisLineWidth = 1.5, fillGraph = TRUE, drawGrid = FALSE)
+```
+
+## Looking at Rates of Change (ROC)
+
+Another measure I like to use to determine volatility is looking at the Rate of Change of a market and seeing how stable/variable that is. Here is the weekly/ 7 day rate of change for Bitcoin USD
+
+```{r echo=FALSE}
+dygraph(roc7, main = "Bitcoin - Rolling 7 Day Price Movement", group = "movingAvg") %>% 
+  dyRangeSelector(dateWindow = c("2017-01-01", "2018-11-06")) %>% 
+  dyOptions(axisLineWidth = 1.5, fillGraph = TRUE, drawGrid = FALSE)
+```
+
+We can also look at the standard deviation of the Rate of Change to see how volatile recent returns are, and as you guessed, not much.
+
+```{r echo=FALSE}
+dygraph(sdROC7*100, main = "Rolling 20 Day Volatility of 7 Day ROC", group = "movingAvg") %>% 
+  dyRangeSelector(dateWindow = c("2017-01-01", "2018-11-06")) %>% 
+  dyOptions(axisLineWidth = 1.5, fillGraph = TRUE, drawGrid = FALSE)
+```
+
+### References  
+
+Volatility and Rate of Change calculated using R TTR package: 
+https://cran.r-project.org/web/packages/TTR/TTR.pdf
+
+Volatility Wikipedia:
+https://en.wikipedia.org/wiki/Volatility_(finance)
